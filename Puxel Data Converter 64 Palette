@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Data Converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#111114;
+    --panel:#191a1f;
+    --line:#2a2b32;
+    --ink:#eae7e0;
+    --dim:#8b8c94;
+    --accent:#3ddc97;
+    --accent-dim:#2a9c6d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono', monospace;
+    min-height:100vh;
+    padding:16px 16px 60px;
+  }
+  .wrap{max-width:920px;margin:0 auto;}
+  header{margin-bottom:22px;}
+  h1{
+    font-family:'Press Start 2P', monospace;
+    font-size:14px;
+    line-height:1.6;
+    letter-spacing:0.5px;
+    margin:0 0 10px;
+    color:var(--ink);
+  }
+  h1 span{color:var(--accent);}
+  header p{margin:0;color:var(--dim);font-size:12px;max-width:56ch;}
+
+  .layout{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:18px;
+  }
+  @media(min-width:760px){
+    .layout{grid-template-columns: 300px 1fr;}
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:16px;
+  }
+  .panel + .panel{margin-top:16px;}
+
+  .drop{
+    border:1px dashed var(--line);
+    border-radius:2px;
+    padding:26px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop:hover, .drop.drag{
+    border-color:var(--accent);
+    background:#151920;
+  }
+  .drop input{display:none;}
+  .drop .icon{font-size:22px;color:var(--accent);margin-bottom:8px;}
+  .drop .txt{font-size:12.5px;color:var(--dim);}
+  .drop .txt b{color:var(--ink);}
+
+  .field{margin-top:16px;}
+  .field label{
+    display:flex;justify-content:space-between;
+    font-size:11px;color:var(--dim);margin-bottom:6px;
+    text-transform:uppercase;letter-spacing:0.06em;
+  }
+  .field label span.val{color:var(--accent);}
+  select{
+    width:100%;background:#101115;color:var(--ink);
+    border:1px solid var(--line);padding:7px 8px;
+    font-family:inherit;font-size:12.5px;border-radius:2px;
+  }
+
+  button{
+    font-family:inherit;
+    font-size:12px;
+    letter-spacing:0.03em;
+    padding:10px 14px;
+    border-radius:2px;
+    border:1px solid var(--line);
+    background:#101115;
+    color:var(--ink);
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  button:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+  button:disabled{opacity:0.35;cursor:not-allowed;}
+
+  button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#0b1410;
+    font-weight:700;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  button.primary:hover:not(:disabled){color:#0b1410;border-color:var(--accent-dim);background:var(--accent-dim);}
+
+  .stage{
+    display:flex;flex-direction:column;align-items:center;
+    gap:14px;
+  }
+  .canvases{
+    display:flex;gap:22px;flex-wrap:wrap;justify-content:center;align-items:flex-start;
+  }
+  .canvasblock{text-align:center;}
+  .canvasblock .cap{
+    font-size:10.5px;color:var(--dim);text-transform:uppercase;
+    letter-spacing:0.08em;margin-bottom:8px;
+  }
+  canvas{
+    image-rendering:pixelated;
+    border:1px solid var(--line);
+    background:#000;
+    max-width:100%;
+  }
+  #srcCanvas{width:120px;height:120px;}
+  #outCanvas{width:220px;height:220px;max-width:60vw;max-height:60vw;}
+
+  .empty{
+    color:var(--dim);font-size:12.5px;text-align:center;
+    padding:60px 20px;
+  }
+
+  .palette{
+    display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:340px;overflow-y:auto;
+  }
+  .prow{
+    display:flex;align-items:center;gap:8px;
+    border:1px solid var(--line);border-radius:2px;padding:4px 7px;
+  }
+  .prow .sw{
+    width:18px;height:18px;flex:none;border-radius:2px;border:1px solid rgba(255,255,255,0.15);
+  }
+  .prow .sym{
+    font-weight:700;color:var(--accent);width:18px;flex:none;text-align:center;font-size:11.5px;
+  }
+  .prow .nm{font-size:10.5px;color:var(--ink);flex:1;}
+  .prow .nm span{color:var(--dim);font-size:9px;display:block;}
+  .palette-hint{
+    font-size:10.5px;color:var(--dim);margin-top:10px;line-height:1.5;
+  }
+
+  .log{
+    margin-top:14px;
+    width: 100%;
+  }
+  .log textarea{
+    width:100%;height:160px;resize:vertical;
+    background:#101115;color:var(--accent);border:1px solid var(--line);
+    border-radius:2px;padding:8px;font-family:'JetBrains Mono', monospace;font-size:10px;line-height:1.4;
+    word-break: break-all;
+  }
+  .log .cap{font-size:11px;color:var(--dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.06em;}
+  .log .cap b{color:var(--ink);}
+
+  footer{margin-top:24px;color:var(--dim);font-size:11px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span id="titleSize">75×75</span> <span>PIXEL DATA</span> CONVERTER</h1>
+    <p>Upload any image. Every pixel is matched to the closest color in a fixed 64-color palette, so the same symbol always means the same color, every time. Exported as a Color3.new legend + grid data string.</p>
+  </header>
+
+  <div class="layout">
+    <div class="col-left">
+      <div class="panel">
+        <div class="drop" id="drop">
+          <div class="icon">&#9635;</div>
+          <div class="txt"><b>Click to upload</b><br>or drag an image here</div>
+          <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="field">
+          <label>Grid size <span class="val" id="gridLabel">75 × 75</span></label>
+          <select id="gridSelect">
+            <option value="25">25 × 25</option>
+            <option value="50">50 × 50</option>
+            <option value="75" selected>75 × 75</option>
+            <option value="100">100 × 100</option>
+            <option value="125">125 × 125</option>
+            <option value="150">150 × 150</option>
+            <option value="200">200 × 200</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Dithering <span class="val" id="ditherLabel">On</span></label>
+          <select id="ditherSelect">
+            <option value="on">Floyd–Steinberg (on)</option>
+            <option value="off">Nearest color only (off)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="cap" style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Fixed 64-Color Palette</div>
+        <div class="palette" id="palette"></div>
+        <div class="palette-hint">This palette never changes. Every image is quantized against these exact 64 colors, so a symbol like "D" always maps to the same Color3.new value in every export.</div>
+      </div>
+    </div>
+
+    <div class="col-right">
+      <div class="panel stage">
+        <div id="emptyState" class="empty">No image yet — upload one to see it converted here.</div>
+        <div class="canvases" id="canvasArea" style="display:none;">
+          <div class="canvasblock">
+            <div class="cap"><span id="srcCap">Source (75×75)</span></div>
+            <canvas id="srcCanvas" width="75" height="75"></canvas>
+          </div>
+          <div class="canvasblock">
+            <div class="cap">Processed Result</div>
+            <canvas id="outCanvas" width="75" height="75"></canvas>
+          </div>
+        </div>
+
+        <div class="log" id="logArea" style="display:none;width:100%;">
+          <div class="cap"><b>Grid String Output</b></div>
+          <button class="primary" id="copyCodeBtn" disabled>Copy Grid String</button>
+          <textarea id="logText" readonly></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>All processing happens locally in your browser.</footer>
+</div>
+
+<script>
+// ==========================================
+// FIXED 64-COLOR PALETTE — never changes.
+// Symbol order: 0-9, A-Z, a-z, +, -
+// rgb01 values are exactly what the user specified (Color3.new 0-1 range).
+// ==========================================
+const PALETTE = [
+  // Grays & Neutrals
+  ["0","White",             [1.000,1.000,1.000]],
+  ["1","Black",             [0.000,0.000,0.000]],
+  ["2","Light Gray",        [0.900,0.900,0.900]],
+  ["3","Medium Gray",       [0.600,0.600,0.600]],
+  ["4","Dark Gray",         [0.300,0.300,0.300]],
+  ["5","Very Dark Gray",    [0.150,0.150,0.150]],
+  ["6","Warm Off-White",    [0.950,0.950,0.800]],
+  ["7","Cool Off-White",    [0.800,0.800,0.900]],
+  // Reds & Pinks
+  ["8","Pure Red",          [1.000,0.000,0.000]],
+  ["9","Dark Red",          [0.800,0.100,0.100]],
+  ["A","Light Red",         [1.000,0.400,0.400]],
+  ["B","Crimson",           [0.900,0.200,0.400]],
+  ["C","Pink",              [1.000,0.600,0.700]],
+  ["D","Dark Pink",         [0.700,0.200,0.300]],
+  ["E","Hot Pink",          [1.000,0.300,0.500]],
+  ["F","Deep Red",          [0.600,0.100,0.200]],
+  // Oranges & Browns
+  ["G","Orange",            [1.000,0.500,0.000]],
+  ["H","Dark Orange",       [0.900,0.400,0.100]],
+  ["I","Light Orange",      [1.000,0.700,0.300]],
+  ["J","Brown",             [0.700,0.400,0.100]],
+  ["K","Dark Brown",        [0.500,0.300,0.100]],
+  ["L","Gold",              [0.900,0.600,0.200]],
+  ["M","Tan",               [0.800,0.500,0.200]],
+  ["N","Sienna",            [0.600,0.350,0.150]],
+  // Yellows
+  ["O","Yellow",            [1.000,1.000,0.000]],
+  ["P","Dark Yellow",       [0.900,0.850,0.000]],
+  ["Q","Light Yellow",      [1.000,1.000,0.600]],
+  ["R","Cream",             [0.950,0.900,0.400]],
+  ["S","Olive Yellow",      [0.800,0.700,0.100]],
+  ["T","Pale Yellow",       [1.000,0.950,0.700]],
+  // Greens
+  ["U","Pure Green",        [0.000,1.000,0.000]],
+  ["V","Dark Green",        [0.000,0.700,0.200]],
+  ["W","Light Green",       [0.400,1.000,0.400]],
+  ["X","Forest Green",      [0.200,0.600,0.300]],
+  ["Y","Sea Green",         [0.000,0.800,0.500]],
+  ["Z","Mint",              [0.300,0.900,0.500]],
+  ["a","Deep Forest",       [0.100,0.500,0.200]],
+  ["b","Pale Mint",         [0.500,1.000,0.700]],
+  // Cyans & Teals
+  ["c","Cyan",              [0.000,1.000,1.000]],
+  ["d","Dark Cyan",         [0.000,0.700,0.700]],
+  ["e","Light Cyan",        [0.400,1.000,1.000]],
+  ["f","Teal",              [0.000,0.600,0.500]],
+  ["g","Turquoise",         [0.200,0.800,0.700]],
+  ["h","Dark Teal",         [0.100,0.400,0.400]],
+  // Blues
+  ["i","Pure Blue",         [0.000,0.000,1.000]],
+  ["j","Dark Blue",         [0.100,0.200,0.800]],
+  ["k","Light Blue",        [0.400,0.600,1.000]],
+  ["l","Royal Blue",        [0.000,0.400,0.800]],
+  ["m","Sky Blue",          [0.300,0.500,1.000]],
+  ["n","Navy",              [0.000,0.300,0.600]],
+  ["o","Powder Blue",       [0.500,0.700,1.000]],
+  ["p","Deep Blue",         [0.200,0.400,0.900]],
+  // Purples & Magentas
+  ["q","Purple",            [0.500,0.000,1.000]],
+  ["r","Dark Purple",       [0.400,0.100,0.700]],
+  ["s","Light Purple",      [0.700,0.400,1.000]],
+  ["t","Magenta",           [0.800,0.200,0.900]],
+  ["u","Dark Magenta",      [0.600,0.200,0.600]],
+  ["v","Lavender",          [0.900,0.600,1.000]],
+  ["w","Deep Violet",       [0.300,0.000,0.500]],
+  ["x","Orchid",            [0.700,0.300,0.800]],
+  // Extras
+  ["y","Warm Beige",        [0.950,0.750,0.500]],
+  ["z","Dark Beige",        [0.400,0.300,0.200]],
+  ["+","Very Light Purple", [0.950,0.850,0.950]],
+  ["-","Bright Cyan",       [0.200,0.950,0.950]]
+];
+// Precompute 0-255 rgb for matching/rendering, keep rgb01 exact for legend output.
+PALETTE.forEach(entry => {
+  const [sym, name, rgb01] = entry;
+  entry.push([Math.round(rgb01[0]*255), Math.round(rgb01[1]*255), Math.round(rgb01[2]*255)]);
+});
+// entry layout: [symbol, name, rgb01, rgb255]
+
+let GRID = 75;
+let lastResult = null;   // grid of {char, rgb255, idx}
+let rawBuf = null;       // Float32Array of cropped/resized source pixels
+
+const paletteEl = document.getElementById('palette');
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const emptyState = document.getElementById('emptyState');
+const canvasArea = document.getElementById('canvasArea');
+const logArea = document.getElementById('logArea');
+const srcCanvas = document.getElementById('srcCanvas');
+const outCanvas = document.getElementById('outCanvas');
+const logText = document.getElementById('logText');
+const ditherSelect = document.getElementById('ditherSelect');
+const ditherLabel = document.getElementById('ditherLabel');
+const gridSelect = document.getElementById('gridSelect');
+const gridLabel = document.getElementById('gridLabel');
+const titleSize = document.getElementById('titleSize');
+const srcCap = document.getElementById('srcCap');
+const copyCodeBtn = document.getElementById('copyCodeBtn');
+
+function toColor3New(rgb01){
+  return `Color3.new(${rgb01[0].toFixed(3)}, ${rgb01[1].toFixed(3)}, ${rgb01[2].toFixed(3)})`;
+}
+
+function renderPaletteUI(){
+  paletteEl.innerHTML = "";
+  PALETTE.forEach(([sym, name, rgb01, rgb255]) => {
+    const row = document.createElement('div');
+    row.className = 'prow';
+    row.innerHTML = `
+      <div class="sym">${sym}</div>
+      <div class="sw" style="background:rgb(${rgb255[0]},${rgb255[1]},${rgb255[2]})"></div>
+      <div class="nm">${name}<span>${toColor3New(rgb01)}</span></div>
+    `;
+    paletteEl.appendChild(row);
+  });
+}
+renderPaletteUI();
+
+drop.addEventListener('click', () => fileInput.click());
+drop.addEventListener('dragover', e => {e.preventDefault(); drop.classList.add('drag');});
+drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('drag');
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if(fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+ditherSelect.addEventListener('change', () => {
+  ditherLabel.textContent = ditherSelect.value === 'on' ? 'On' : 'Off';
+  if(rawBuf) recompute();
+});
+gridSelect.addEventListener('change', () => {
+  const n = gridSelect.value;
+  gridLabel.textContent = `${n} × ${n}`;
+  titleSize.textContent = `${n}×${n}`;
+  srcCap.textContent = `Source (${n}×${n})`;
+  if(window.__lastImg) processImage(window.__lastImg);
+});
+
+function handleFile(file){
+  if(!file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      window.__lastImg = img;
+      processImage(img);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clamp(v){return v<0?0:v>255?255:v;}
+
+function nearestColor(r,g,b){
+  let bestI=-1, bestD=Infinity;
+  for(let i=0;i<PALETTE.length;i++){
+    const p = PALETTE[i][3];
+    const dr=r-p[0], dg=g-p[1], db=b-p[2];
+    const d=dr*dr+dg*dg+db*db;
+    if(d<bestD){bestD=d;bestI=i;}
+  }
+  return bestI;
+}
+
+function processImage(img){
+  emptyState.style.display = 'none';
+  canvasArea.style.display = 'flex';
+  logArea.style.display = 'block';
+
+  GRID = parseInt(gridSelect.value, 10);
+  srcCanvas.width = GRID; srcCanvas.height = GRID;
+  outCanvas.width = GRID; outCanvas.height = GRID;
+
+  const side = Math.min(img.width, img.height);
+  const sx = (img.width - side)/2;
+  const sy = (img.height - side)/2;
+
+  const work = document.createElement('canvas');
+  work.width = GRID; work.height = GRID;
+  const wctx = work.getContext('2d');
+  wctx.imageSmoothingEnabled = true;
+  wctx.imageSmoothingQuality = 'high';
+  wctx.drawImage(img, sx, sy, side, side, 0, 0, GRID, GRID);
+
+  const sctx = srcCanvas.getContext('2d');
+  sctx.clearRect(0,0,GRID,GRID);
+  sctx.drawImage(work, 0, 0);
+
+  const imgData = wctx.getImageData(0,0,GRID,GRID);
+  const data = imgData.data;
+
+  rawBuf = new Float32Array(GRID*GRID*3);
+  for(let i=0;i<GRID*GRID;i++){
+    rawBuf[i*3]   = data[i*4];
+    rawBuf[i*3+1] = data[i*4+1];
+    rawBuf[i*3+2] = data[i*4+2];
+  }
+
+  recompute();
+  copyCodeBtn.disabled = false;
+}
+
+function recompute(){
+  if(!rawBuf) return;
+  const useDither = ditherSelect.value === 'on';
+  const buf = Float32Array.from(rawBuf);
+  const result = [];
+  for(let y=0;y<GRID;y++) result.push(new Array(GRID));
+
+  for(let y=0;y<GRID;y++){
+    for(let x=0;x<GRID;x++){
+      const i = y*GRID+x;
+      const r = buf[i*3], g = buf[i*3+1], b = buf[i*3+2];
+      const idx = nearestColor(r,g,b);
+      const [sym, name, rgb01, rgb255] = PALETTE[idx];
+      result[y][x] = {char: sym, rgb255, idx};
+
+      if(useDither){
+        const er = r - rgb255[0];
+        const eg = g - rgb255[1];
+        const eb = b - rgb255[2];
+        const spread = (xx,yy,f) => {
+          if(xx>=0 && xx<GRID && yy>=0 && yy<GRID){
+            const j=(yy*GRID+xx)*3;
+            buf[j]   = clamp(buf[j]   + er*f);
+            buf[j+1] = clamp(buf[j+1] + eg*f);
+            buf[j+2] = clamp(buf[j+2] + eb*f);
+          }
+        };
+        spread(x+1,y,   7/16);
+        spread(x-1,y+1, 3/16);
+        spread(x,  y+1, 5/16);
+        spread(x+1,y+1, 1/16);
+      }
+    }
+  }
+
+  lastResult = result;
+
+  const octx = outCanvas.getContext('2d');
+  const outData = octx.createImageData(GRID, GRID);
+  for(let y=0;y<GRID;y++){
+    for(let x=0;x<GRID;x++){
+      const {rgb255} = result[y][x];
+      const i = (y*GRID+x)*4;
+      outData.data[i]=rgb255[0]; outData.data[i+1]=rgb255[1]; outData.data[i+2]=rgb255[2]; outData.data[i+3]=255;
+    }
+  }
+  octx.putImageData(outData, 0, 0);
+
+  buildLog();
+}
+
+function buildLog(){
+  let gridStream = "";
+  for(let y = GRID - 1; y >= 0; y--){
+    for(let x = 0; x < GRID; x++){
+      gridStream += lastResult[y][x].char;
+    }
+  }
+  logText.value = gridStream;
+}
+
+copyCodeBtn.addEventListener('click', () => {
+  logText.select();
+  document.execCommand('copy');
+  const oldText = copyCodeBtn.textContent;
+  copyCodeBtn.textContent = 'Copied!';
+  setTimeout(() => { copyCodeBtn.textContent = oldText; }, 1500);
+});
+</script>
+</body>
+</html>
