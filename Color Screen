@@ -1,19 +1,23 @@
 local player = game:GetService("Players").LocalPlayer
 local blocksFolder = workspace.Blocks[player.Name]
-local Event = player.Character:WaitForChild("PaintingTool").RF
+local UIS = game:GetService("UserInputService")
 
 local SIZE = 75
 
--- ==================== PROFESSIONAL UI ====================
+local playerGui = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui", 5)
+if not playerGui then return end
+
+-- ==================== SMALL + MOVABLE UI ====================
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Parent = playerGui
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 420, 0, 340)
-main.Position = UDim2.new(0.5, -210, 0.5, -170)
+main.Size = UDim2.new(0, 340, 0, 280)
+main.Position = UDim2.new(0.5, -170, 0.5, -140)
 main.BackgroundColor3 = Color3.fromRGB(20, 22, 28)
 main.BorderSizePixel = 0
+main.Active = true
 main.Parent = screenGui
 
 local corner = Instance.new("UICorner")
@@ -25,56 +29,44 @@ stroke.Color = Color3.fromRGB(45, 48, 58)
 stroke.Thickness = 1
 stroke.Parent = main
 
--- Title
 local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 42)
+titleBar.Size = UDim2.new(1, 0, 0, 36)
 titleBar.BackgroundColor3 = Color3.fromRGB(28, 30, 38)
 titleBar.BorderSizePixel = 0
 titleBar.Parent = main
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -50, 1, 0)
-title.Position = UDim2.new(0, 16, 0, 0)
+title.Size = UDim2.new(1, -40, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
 title.BackgroundTransparency = 1
-title.Text = "75×75 Dynamic Painter"
+title.Text = "75×75 Painter"
 title.TextColor3 = Color3.fromRGB(230, 232, 240)
-title.TextSize = 16
+title.TextSize = 14
 title.Font = Enum.Font.GothamSemibold
 title.TextXAlignment = Enum.TextXAlignment.Left
 title.Parent = titleBar
 
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 32, 0, 32)
-closeBtn.Position = UDim2.new(1, -40, 0, 5)
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -32, 0, 4)
 closeBtn.BackgroundColor3 = Color3.fromRGB(40, 42, 52)
 closeBtn.Text = "×"
 closeBtn.TextColor3 = Color3.fromRGB(180, 180, 190)
-closeBtn.TextSize = 20
+closeBtn.TextSize = 18
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.Parent = titleBar
 
--- Content
 local content = Instance.new("Frame")
-content.Size = UDim2.new(1, -32, 1, -58)
-content.Position = UDim2.new(0, 16, 0, 50)
+content.Size = UDim2.new(1, -20, 1, -50)
+content.Position = UDim2.new(0, 10, 0, 42)
 content.BackgroundTransparency = 1
 content.Parent = main
 
-local instruction = Instance.new("TextLabel")
-instruction.Size = UDim2.new(1, 0, 0, 22)
-instruction.BackgroundTransparency = 1
-instruction.Text = "Paste full output from HTML (LEGEND + GRID):"
-instruction.TextColor3 = Color3.fromRGB(160, 165, 180)
-instruction.TextSize = 12
-instruction.Font = Enum.Font.Gotham
-instruction.Parent = content
-
 local textBox = Instance.new("TextBox")
-textBox.Size = UDim2.new(1, 0, 0, 180)
-textBox.Position = UDim2.new(0, 0, 0, 26)
+textBox.Size = UDim2.new(1, 0, 0, 140)
 textBox.BackgroundColor3 = Color3.fromRGB(15, 17, 22)
 textBox.Text = ""
-textBox.PlaceholderText = "Paste everything from the HTML here..."
+textBox.PlaceholderText = "Paste full HTML output here..."
 textBox.TextColor3 = Color3.fromRGB(200, 255, 200)
 textBox.TextSize = 11
 textBox.Font = Enum.Font.Code
@@ -86,88 +78,122 @@ local boxCorner = Instance.new("UICorner")
 boxCorner.CornerRadius = UDim.new(0, 6)
 boxCorner.Parent = textBox
 
--- Paint Button
 local paintBtn = Instance.new("TextButton")
-paintBtn.Size = UDim2.new(1, 0, 0, 44)
-paintBtn.Position = UDim2.new(0, 0, 1, -44)
+paintBtn.Size = UDim2.new(1, 0, 0, 38)
+paintBtn.Position = UDim2.new(0, 0, 1, -38)
 paintBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
-paintBtn.Text = "PAINT IMAGE"
+paintBtn.Text = "PAINT (Fast)"
 paintBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-paintBtn.TextSize = 15
+paintBtn.TextSize = 14
 paintBtn.Font = Enum.Font.GothamSemibold
 paintBtn.Parent = content
 
 local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.CornerRadius = UDim.new(0, 6)
 btnCorner.Parent = paintBtn
 
 local status = Instance.new("TextLabel")
-status.Size = UDim2.new(1, 0, 0, 20)
-status.Position = UDim2.new(0, 0, 1, -68)
+status.Size = UDim2.new(1, 0, 0, 18)
+status.Position = UDim2.new(0, 0, 1, -58)
 status.BackgroundTransparency = 1
-status.Text = "Ready - Paste full HTML output"
+status.Text = "Ready"
 status.TextColor3 = Color3.fromRGB(140, 145, 160)
-status.TextSize = 12
+status.TextSize = 11
 status.Font = Enum.Font.Gotham
 status.Parent = content
 
--- ==================== DYNAMIC PAINTING ====================
+-- Dragging
+local dragging, dragInput, dragStart, startPos
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+    end
+end)
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- ==================== PAINT LOGIC ====================
 paintBtn.MouseButton1Click:Connect(function()
-    local fullText = textBox.Text
-
-    -- Try to extract legend and grid
-    local legendPart = fullText:match("LEGEND:%s*(.-)\n\nGRID") or fullText:match("LEGEND:%s*(.+)GRID")
-    local gridStr = fullText:match("GRID %(%d+x%d+%):%s*(.+)") or fullText
-
-    gridStr = gridStr:gsub("%s+", ""):sub(1, SIZE*SIZE)
-
-    if #gridStr ~= SIZE*SIZE then
-        status.Text = "❌ Grid length wrong! Got " .. #gridStr .. " (need 5625)"
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
+    -- Get the Remote only when painting (so UI loads immediately)
+    local tool = player.Character:FindFirstChild("PaintingTool") or player.Character:WaitForChild("PaintingTool", 3)
+    if not tool then
+        status.Text = "❌ PaintingTool not equipped"
+        return
+    end
+    local Event = tool:FindFirstChild("RF")
+    if not Event then
+        status.Text = "❌ RF missing on tool"
         return
     end
 
-    -- Parse legend into color map
+    local fullText = textBox.Text
+    local gridStart = fullText:find("GRID:")
+    if not gridStart then
+        status.Text = "❌ No GRID: found in text"
+        return
+    end
+
+    local gridStr = fullText:sub(gridStart + 5):gsub("%s+", ""):sub(1, SIZE*SIZE)
+    if #gridStr ~= SIZE*SIZE then
+        status.Text = "❌ Wrong grid length!"
+        return
+    end
+
+    -- Parse legend for colors
     local colorMap = {}
-    if legendPart then
-        for sym, r, g, b in legendPart:gmatch("(%w)=.-Color3%.new%(([%d%.]+),%s*([%d%.]+),%s*([%d%.]+)%)") do
-            colorMap[sym] = Color3.new(tonumber(r), tonumber(g), tonumber(b))
+    local legendStart = fullText:find("LEGEND:")
+    if legendStart then
+        local legendText = fullText:sub(legendStart + 7, gridStart - 1)
+        for line in legendText:gmatch("[^\r\n]+") do
+            local sym, r, g, b = line:match("(%w)%s*=%s*.-Color3%.new%(([%d%.]+),%s*([%d%.]+),%s*([%d%.]+)%)")
+            if sym and r and g and b then
+                colorMap[sym] = Color3.new(tonumber(r), tonumber(g), tonumber(b))
+            end
         end
     end
 
-    if next(colorMap) == nil then
-        status.Text = "❌ Could not parse legend colors"
-        status.TextColor3 = Color3.fromRGB(255, 100, 100)
-        return
-    end
-
-    status.Text = "Painting with " .. #colorMap .. " colors..."
+    status.Text = "Painting..."
     paintBtn.Text = "PAINTING..."
     paintBtn.BackgroundColor3 = Color3.fromRGB(0, 140, 90)
+
+    local BATCH_SIZE = 250
+    local batch = {}
 
     for i = 1, #gridStr do
         local char = gridStr:sub(i, i)
         local color = colorMap[char] or Color3.new(0,0,0)
-
         local block = blocksFolder:GetChildren()[i]
-        if block then
-            Event:InvokeServer({{block, color}})
-        end
+        if block then table.insert(batch, {block, color}) end
 
-        if i % 100 == 0 then
-            status.Text = "Progress: " .. math.floor((i / (SIZE*SIZE)) * 100) .. "%"
-            wait(0.05)
+        if #batch >= BATCH_SIZE or i == #gridStr then
+            if #batch > 0 then Event:InvokeServer(batch) end
+            batch = {}
+            if i % 750 == 0 then task.wait(0.01) end
         end
     end
 
-    status.Text = "✅ Finished painting!"
-    status.TextColor3 = Color3.fromRGB(100, 255, 150)
-    paintBtn.Text = "PAINT IMAGE"
-    paintBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 120)
+    status.Text = "✅ Done!"
+    paintBtn.Text = "PAINT (Fast)"
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
-print("✅ Dynamic Painter loaded (parses legend from HTML)")
+print("✅ Script loaded - UI should appear immediately now")
