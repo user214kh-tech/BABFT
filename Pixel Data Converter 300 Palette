@@ -147,10 +147,11 @@
     width:18px;height:18px;flex:none;border-radius:2px;border:1px solid rgba(255,255,255,0.15);
   }
   .prow .sym{
-    font-weight:700;color:var(--accent);width:18px;flex:none;text-align:center;font-size:11.5px;
+    font-weight:700;color:var(--accent);width:30px;flex:none;text-align:center;font-size:11px;
   }
   .prow .nm{font-size:10.5px;color:var(--ink);flex:1;}
   .prow .nm span{color:var(--dim);font-size:9px;display:block;}
+  .prow .pct{font-size:9.5px;color:var(--dim);flex:none;}
   .palette-hint{
     font-size:10.5px;color:var(--dim);margin-top:10px;line-height:1.5;
   }
@@ -160,7 +161,7 @@
     width: 100%;
   }
   .log textarea{
-    width:100%;height:160px;resize:vertical;
+    width:100%;height:220px;resize:vertical;
     background:#101115;color:var(--accent);border:1px solid var(--line);
     border-radius:2px;padding:8px;font-family:'JetBrains Mono', monospace;font-size:10px;line-height:1.4;
     word-break: break-all;
@@ -175,7 +176,7 @@
 <div class="wrap">
   <header>
     <h1><span id="titleSize">75×75</span> <span>PIXEL DATA</span> CONVERTER</h1>
-    <p>Upload any image. Every pixel is matched to the closest color in a fixed 64-color palette, so the same symbol always means the same color, every time. Exported as a Color3.new legend + grid data string.</p>
+    <p>Upload any image. The tool clusters its actual colors, assigns each a symbol, and exports a clean LEGEND + GRID block formatted for easy parsing in Roblox Lua.</p>
   </header>
 
   <div class="layout">
@@ -201,6 +202,24 @@
         </div>
 
         <div class="field">
+          <label>Colors to detect <span class="val" id="colorsLabel">16</span></label>
+          <select id="colorsSelect">
+            <option value="4">4 colors</option>
+            <option value="8">8 colors</option>
+            <option value="12">12 colors</option>
+            <option value="16" selected>16 colors</option>
+            <option value="24">24 colors</option>
+            <option value="32">32 colors</option>
+            <option value="48">48 colors</option>
+            <option value="64">64 colors</option>
+            <option value="100">100 colors</option>
+            <option value="150">150 colors</option>
+            <option value="200">200 colors</option>
+            <option value="300">300 colors</option>
+          </select>
+        </div>
+
+        <div class="field">
           <label>Dithering <span class="val" id="ditherLabel">On</span></label>
           <select id="ditherSelect">
             <option value="on">Floyd–Steinberg (on)</option>
@@ -210,9 +229,9 @@
       </div>
 
       <div class="panel">
-        <div class="cap" style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Fixed 64-Color Palette</div>
-        <div class="palette" id="palette"></div>
-        <div class="palette-hint">This palette never changes. Every image is quantized against these exact 64 colors, so a symbol like "D" always maps to the same Color3.new value in every export.</div>
+        <div class="cap" style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Detected Palette</div>
+        <div class="palette" id="palette"><div class="empty" style="padding:20px 6px;">Upload an image to detect its colors.</div></div>
+        <div class="palette-hint">Colors are extracted from your specific image via clustering, ranked by how much of the image they cover. Symbols are reassigned fresh for every image — always read the LEGEND before decoding the GRID.</div>
       </div>
     </div>
 
@@ -231,8 +250,8 @@
         </div>
 
         <div class="log" id="logArea" style="display:none;width:100%;">
-          <div class="cap"><b>Grid String Output</b></div>
-          <button class="primary" id="copyCodeBtn" disabled>Copy Grid String</button>
+          <div class="cap"><b>LEGEND + GRID Output</b></div>
+          <button class="primary" id="copyCodeBtn" disabled>Copy Output</button>
           <textarea id="logText" readonly></textarea>
         </div>
       </div>
@@ -243,95 +262,18 @@
 </div>
 
 <script>
-// ==========================================
-// FIXED 64-COLOR PALETTE — never changes.
-// Symbol order: 0-9, A-Z, a-z, +, -
-// rgb01 values are exactly what the user specified (Color3.new 0-1 range).
-// ==========================================
-const PALETTE = [
-  // Grays & Neutrals
-  ["0","White",             [1.000,1.000,1.000]],
-  ["1","Black",             [0.000,0.000,0.000]],
-  ["2","Light Gray",        [0.900,0.900,0.900]],
-  ["3","Medium Gray",       [0.600,0.600,0.600]],
-  ["4","Dark Gray",         [0.300,0.300,0.300]],
-  ["5","Very Dark Gray",    [0.150,0.150,0.150]],
-  ["6","Warm Off-White",    [0.950,0.950,0.800]],
-  ["7","Cool Off-White",    [0.800,0.800,0.900]],
-  // Reds & Pinks
-  ["8","Pure Red",          [1.000,0.000,0.000]],
-  ["9","Dark Red",          [0.800,0.100,0.100]],
-  ["A","Light Red",         [1.000,0.400,0.400]],
-  ["B","Crimson",           [0.900,0.200,0.400]],
-  ["C","Pink",              [1.000,0.600,0.700]],
-  ["D","Dark Pink",         [0.700,0.200,0.300]],
-  ["E","Hot Pink",          [1.000,0.300,0.500]],
-  ["F","Deep Red",          [0.600,0.100,0.200]],
-  // Oranges & Browns
-  ["G","Orange",            [1.000,0.500,0.000]],
-  ["H","Dark Orange",       [0.900,0.400,0.100]],
-  ["I","Light Orange",      [1.000,0.700,0.300]],
-  ["J","Brown",             [0.700,0.400,0.100]],
-  ["K","Dark Brown",        [0.500,0.300,0.100]],
-  ["L","Gold",              [0.900,0.600,0.200]],
-  ["M","Tan",               [0.800,0.500,0.200]],
-  ["N","Sienna",            [0.600,0.350,0.150]],
-  // Yellows
-  ["O","Yellow",            [1.000,1.000,0.000]],
-  ["P","Dark Yellow",       [0.900,0.850,0.000]],
-  ["Q","Light Yellow",      [1.000,1.000,0.600]],
-  ["R","Cream",             [0.950,0.900,0.400]],
-  ["S","Olive Yellow",      [0.800,0.700,0.100]],
-  ["T","Pale Yellow",       [1.000,0.950,0.700]],
-  // Greens
-  ["U","Pure Green",        [0.000,1.000,0.000]],
-  ["V","Dark Green",        [0.000,0.700,0.200]],
-  ["W","Light Green",       [0.400,1.000,0.400]],
-  ["X","Forest Green",      [0.200,0.600,0.300]],
-  ["Y","Sea Green",         [0.000,0.800,0.500]],
-  ["Z","Mint",              [0.300,0.900,0.500]],
-  ["a","Deep Forest",       [0.100,0.500,0.200]],
-  ["b","Pale Mint",         [0.500,1.000,0.700]],
-  // Cyans & Teals
-  ["c","Cyan",              [0.000,1.000,1.000]],
-  ["d","Dark Cyan",         [0.000,0.700,0.700]],
-  ["e","Light Cyan",        [0.400,1.000,1.000]],
-  ["f","Teal",              [0.000,0.600,0.500]],
-  ["g","Turquoise",         [0.200,0.800,0.700]],
-  ["h","Dark Teal",         [0.100,0.400,0.400]],
-  // Blues
-  ["i","Pure Blue",         [0.000,0.000,1.000]],
-  ["j","Dark Blue",         [0.100,0.200,0.800]],
-  ["k","Light Blue",        [0.400,0.600,1.000]],
-  ["l","Royal Blue",        [0.000,0.400,0.800]],
-  ["m","Sky Blue",          [0.300,0.500,1.000]],
-  ["n","Navy",              [0.000,0.300,0.600]],
-  ["o","Powder Blue",       [0.500,0.700,1.000]],
-  ["p","Deep Blue",         [0.200,0.400,0.900]],
-  // Purples & Magentas
-  ["q","Purple",            [0.500,0.000,1.000]],
-  ["r","Dark Purple",       [0.400,0.100,0.700]],
-  ["s","Light Purple",      [0.700,0.400,1.000]],
-  ["t","Magenta",           [0.800,0.200,0.900]],
-  ["u","Dark Magenta",      [0.600,0.200,0.600]],
-  ["v","Lavender",          [0.900,0.600,1.000]],
-  ["w","Deep Violet",       [0.300,0.000,0.500]],
-  ["x","Orchid",            [0.700,0.300,0.800]],
-  // Extras
-  ["y","Warm Beige",        [0.950,0.750,0.500]],
-  ["z","Dark Beige",        [0.400,0.300,0.200]],
-  ["+","Very Light Purple", [0.950,0.850,0.950]],
-  ["-","Bright Cyan",       [0.200,0.950,0.950]]
-];
-// Precompute 0-255 rgb for matching/rendering, keep rgb01 exact for legend output.
-PALETTE.forEach(entry => {
-  const [sym, name, rgb01] = entry;
-  entry.push([Math.round(rgb01[0]*255), Math.round(rgb01[1]*255), Math.round(rgb01[2]*255)]);
-});
-// entry layout: [symbol, name, rgb01, rgb255]
+// Symbols are fixed-width zero-padded numbers ("000", "001", ...) instead of
+// single characters. This removes the 62-color ceiling (supports up to 1000
+// colors) and is trivial to parse in Lua: just read fixed-width chunks.
+const SYMBOL_WIDTH = 3;
+function symbolFor(i){
+  return String(i).padStart(SYMBOL_WIDTH, '0');
+}
 
 let GRID = 75;
+let K = 16;
 let lastResult = null;   // grid of {char, rgb255, idx}
+let lastPalette = null;  // array of {rgb255, char, name, count}
 let rawBuf = null;       // Float32Array of cropped/resized source pixels
 
 const paletteEl = document.getElementById('palette');
@@ -347,28 +289,11 @@ const ditherSelect = document.getElementById('ditherSelect');
 const ditherLabel = document.getElementById('ditherLabel');
 const gridSelect = document.getElementById('gridSelect');
 const gridLabel = document.getElementById('gridLabel');
+const colorsSelect = document.getElementById('colorsSelect');
+const colorsLabel = document.getElementById('colorsLabel');
 const titleSize = document.getElementById('titleSize');
 const srcCap = document.getElementById('srcCap');
 const copyCodeBtn = document.getElementById('copyCodeBtn');
-
-function toColor3New(rgb01){
-  return `Color3.new(${rgb01[0].toFixed(3)}, ${rgb01[1].toFixed(3)}, ${rgb01[2].toFixed(3)})`;
-}
-
-function renderPaletteUI(){
-  paletteEl.innerHTML = "";
-  PALETTE.forEach(([sym, name, rgb01, rgb255]) => {
-    const row = document.createElement('div');
-    row.className = 'prow';
-    row.innerHTML = `
-      <div class="sym">${sym}</div>
-      <div class="sw" style="background:rgb(${rgb255[0]},${rgb255[1]},${rgb255[2]})"></div>
-      <div class="nm">${name}<span>${toColor3New(rgb01)}</span></div>
-    `;
-    paletteEl.appendChild(row);
-  });
-}
-renderPaletteUI();
 
 drop.addEventListener('click', () => fileInput.click());
 drop.addEventListener('dragover', e => {e.preventDefault(); drop.classList.add('drag');});
@@ -382,13 +307,17 @@ fileInput.addEventListener('change', () => {
 });
 ditherSelect.addEventListener('change', () => {
   ditherLabel.textContent = ditherSelect.value === 'on' ? 'On' : 'Off';
-  if(rawBuf) recompute();
+  if(rawBuf) recomputeWithExistingPalette();
 });
 gridSelect.addEventListener('change', () => {
   const n = gridSelect.value;
   gridLabel.textContent = `${n} × ${n}`;
   titleSize.textContent = `${n}×${n}`;
   srcCap.textContent = `Source (${n}×${n})`;
+  if(window.__lastImg) processImage(window.__lastImg);
+});
+colorsSelect.addEventListener('change', () => {
+  colorsLabel.textContent = colorsSelect.value;
   if(window.__lastImg) processImage(window.__lastImg);
 });
 
@@ -408,23 +337,13 @@ function handleFile(file){
 
 function clamp(v){return v<0?0:v>255?255:v;}
 
-function nearestColor(r,g,b){
-  let bestI=-1, bestD=Infinity;
-  for(let i=0;i<PALETTE.length;i++){
-    const p = PALETTE[i][3];
-    const dr=r-p[0], dg=g-p[1], db=b-p[2];
-    const d=dr*dr+dg*dg+db*db;
-    if(d<bestD){bestD=d;bestI=i;}
-  }
-  return bestI;
-}
-
 function processImage(img){
   emptyState.style.display = 'none';
   canvasArea.style.display = 'flex';
   logArea.style.display = 'block';
 
   GRID = parseInt(gridSelect.value, 10);
+  K = parseInt(colorsSelect.value, 10);
   srcCanvas.width = GRID; srcCanvas.height = GRID;
   outCanvas.width = GRID; outCanvas.height = GRID;
 
@@ -453,13 +372,179 @@ function processImage(img){
     rawBuf[i*3+2] = data[i*4+2];
   }
 
-  recompute();
+  const centroids = kMeans(rawBuf, GRID*GRID, K, 12);
+  lastPalette = buildPaletteFromCentroids(centroids);
+  renderPaletteUI();
+
+  recomputeWithExistingPalette();
   copyCodeBtn.disabled = false;
 }
 
-function recompute(){
-  if(!rawBuf) return;
+// ---- K-means clustering on the pixel colors (k-means++ init) ----
+function kMeans(buf, n, k, iterations){
+  k = Math.min(k, n);
+  const centroids = [];
+  const firstIdx = Math.floor(Math.random()*n);
+  centroids.push([buf[firstIdx*3], buf[firstIdx*3+1], buf[firstIdx*3+2]]);
+
+  const distSq = (i, c) => {
+    const dr = buf[i*3]-c[0], dg = buf[i*3+1]-c[1], db = buf[i*3+2]-c[2];
+    return dr*dr+dg*dg+db*db;
+  };
+
+  while(centroids.length < k){
+    const dists = new Float64Array(n);
+    let sum = 0;
+    for(let i=0;i<n;i++){
+      let best = Infinity;
+      for(const c of centroids){
+        const d = distSq(i, c);
+        if(d < best) best = d;
+      }
+      dists[i] = best;
+      sum += best;
+    }
+    if(sum === 0){
+      const idx = Math.floor(Math.random()*n);
+      centroids.push([buf[idx*3], buf[idx*3+1], buf[idx*3+2]]);
+      continue;
+    }
+    let r = Math.random()*sum;
+    let chosen = 0;
+    for(let i=0;i<n;i++){
+      r -= dists[i];
+      if(r <= 0){ chosen = i; break; }
+    }
+    centroids.push([buf[chosen*3], buf[chosen*3+1], buf[chosen*3+2]]);
+  }
+
+  const labels = new Int32Array(n);
+  for(let iter=0; iter<iterations; iter++){
+    for(let i=0;i<n;i++){
+      let best=-1, bestD=Infinity;
+      for(let c=0;c<centroids.length;c++){
+        const d = distSq(i, centroids[c]);
+        if(d<bestD){bestD=d;best=c;}
+      }
+      labels[i] = best;
+    }
+    const sums = centroids.map(()=>[0,0,0,0]);
+    for(let i=0;i<n;i++){
+      const s = sums[labels[i]];
+      s[0]+=buf[i*3]; s[1]+=buf[i*3+1]; s[2]+=buf[i*3+2]; s[3]++;
+    }
+    for(let c=0;c<centroids.length;c++){
+      if(sums[c][3]>0){
+        centroids[c] = [sums[c][0]/sums[c][3], sums[c][1]/sums[c][3], sums[c][2]/sums[c][3]];
+      }
+    }
+  }
+  return centroids;
+}
+
+function buildPaletteFromCentroids(centroids){
+  const n = GRID*GRID;
+  const counts = new Array(centroids.length).fill(0);
+  for(let i=0;i<n;i++){
+    const idx = nearestCentroid(rawBuf[i*3], rawBuf[i*3+1], rawBuf[i*3+2], centroids);
+    counts[idx]++;
+  }
+  const entries = centroids.map((rgb, i) => ({rgb255: rgb.map(v => clamp(Math.round(v))), count: counts[i]}));
+  entries.sort((a,b) => b.count - a.count);
+  entries.forEach((e, i) => {
+    e.char = symbolFor(i);
+    e.name = nameColor(e.rgb255[0], e.rgb255[1], e.rgb255[2]);
+  });
+  return entries;
+}
+
+function nearestCentroid(r,g,b,centroids){
+  let bestI=-1, bestD=Infinity;
+  for(let i=0;i<centroids.length;i++){
+    const c = centroids[i];
+    const dr=r-c[0], dg=g-c[1], db=b-c[2];
+    const d=dr*dr+dg*dg+db*db;
+    if(d<bestD){bestD=d;bestI=i;}
+  }
+  return bestI;
+}
+
+// ---- Simple heuristic color naming from RGB via HSL ----
+function nameColor(r,g,b){
+  const rn=r/255, gn=g/255, bn=b/255;
+  const max=Math.max(rn,gn,bn), min=Math.min(rn,gn,bn);
+  const l=(max+min)/2;
+  let h=0, s=0;
+  const d=max-min;
+  if(d!==0){
+    s = d/(1-Math.abs(2*l-1));
+    switch(max){
+      case rn: h = 60*(((gn-bn)/d)%6); break;
+      case gn: h = 60*(((bn-rn)/d)+2); break;
+      case bn: h = 60*(((rn-gn)/d)+4); break;
+    }
+  }
+  if(h<0) h+=360;
+
+  if(l < 0.08) return "Black";
+  if(l > 0.94 && s < 0.15) return "White";
+  if(s < 0.10){
+    if(l < 0.30) return "Dark Grey";
+    if(l < 0.65) return "Grey";
+    return "Light Grey";
+  }
+
+  let base;
+  if(h < 15) base = "Red";
+  else if(h < 40) base = "Orange";
+  else if(h < 65) base = "Yellow";
+  else if(h < 90) base = "Yellow-Green";
+  else if(h < 150) base = "Green";
+  else if(h < 185) base = "Teal";
+  else if(h < 205) base = "Cyan";
+  else if(h < 250) base = "Blue";
+  else if(h < 280) base = "Indigo";
+  else if(h < 320) base = "Purple";
+  else if(h < 345) base = "Pink";
+  else base = "Red";
+
+  let prefix = "";
+  if(l < 0.28) prefix = "Dark ";
+  else if(l > 0.75) prefix = "Light ";
+  else if(s < 0.35) prefix = "Muted ";
+
+  return (prefix + base).trim();
+}
+
+function toColor3New(rgb255){
+  const r = (rgb255[0]/255).toFixed(3);
+  const g = (rgb255[1]/255).toFixed(3);
+  const b = (rgb255[2]/255).toFixed(3);
+  return `Color3.new(${r},${g},${b})`;
+}
+
+function renderPaletteUI(){
+  paletteEl.innerHTML = "";
+  lastPalette.forEach(entry => {
+    const pct = ((entry.count / (GRID*GRID)) * 100).toFixed(1);
+    const row = document.createElement('div');
+    row.className = 'prow';
+    row.innerHTML = `
+      <div class="sym">${entry.char}</div>
+      <div class="sw" style="background:rgb(${entry.rgb255[0]},${entry.rgb255[1]},${entry.rgb255[2]})"></div>
+      <div class="nm">${entry.name}<span>${toColor3New(entry.rgb255)}</span></div>
+      <div class="pct">${pct}%</div>
+    `;
+    paletteEl.appendChild(row);
+  });
+}
+
+// Re-run quantization against the already-detected palette (used when
+// toggling dithering, without re-clustering).
+function recomputeWithExistingPalette(){
+  if(!rawBuf || !lastPalette) return;
   const useDither = ditherSelect.value === 'on';
+  const centroids = lastPalette.map(e => e.rgb255);
   const buf = Float32Array.from(rawBuf);
   const result = [];
   for(let y=0;y<GRID;y++) result.push(new Array(GRID));
@@ -468,14 +553,14 @@ function recompute(){
     for(let x=0;x<GRID;x++){
       const i = y*GRID+x;
       const r = buf[i*3], g = buf[i*3+1], b = buf[i*3+2];
-      const idx = nearestColor(r,g,b);
-      const [sym, name, rgb01, rgb255] = PALETTE[idx];
-      result[y][x] = {char: sym, rgb255, idx};
+      const idx = nearestCentroid(r,g,b,centroids);
+      const entry = lastPalette[idx];
+      result[y][x] = {char: entry.char, rgb255: entry.rgb255, idx};
 
       if(useDither){
-        const er = r - rgb255[0];
-        const eg = g - rgb255[1];
-        const eb = b - rgb255[2];
+        const er = r - entry.rgb255[0];
+        const eg = g - entry.rgb255[1];
+        const eb = b - entry.rgb255[2];
         const spread = (xx,yy,f) => {
           if(xx>=0 && xx<GRID && yy>=0 && yy<GRID){
             const j=(yy*GRID+xx)*3;
@@ -509,13 +594,16 @@ function recompute(){
 }
 
 function buildLog(){
+  const legendLines = lastPalette.map(e => `${e.char}=${e.name.replace(/\s+/g,'')} ${toColor3New(e.rgb255)}`);
+
   let gridStream = "";
   for(let y = GRID - 1; y >= 0; y--){
     for(let x = 0; x < GRID; x++){
       gridStream += lastResult[y][x].char;
     }
   }
-  logText.value = gridStream;
+
+  logText.value = `LEGEND:\n${legendLines.join("\n")}\n\nGRID:\n${gridStream}`;
 }
 
 copyCodeBtn.addEventListener('click', () => {
