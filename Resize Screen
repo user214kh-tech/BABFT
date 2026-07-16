@@ -1,0 +1,43 @@
+local player = game:GetService("Players").LocalPlayer
+local blocksFolder = workspace.Blocks[player.Name]
+
+local Event = player.Character:WaitForChild("ScalingTool").RF
+
+local startX = -127.06568908691
+local startY = -11.899991989136
+local Z = -482.50686645508
+local size = Vector3.new(0.2, 0.2, 0.2)     -- Changed to 0.2
+
+local blocksPerRow = 75
+local delay = 0.1
+
+print("Starting tight 75×75 grid (size 0.2)...")
+
+for i = 1, 5625 do
+    local row = math.floor((i-1) / blocksPerRow)
+    local col = (i-1) % blocksPerRow
+    
+    local x = startX + (col * 0.2)     -- Changed to 0.2
+    local y = startY + (row * 0.2)     -- Changed to 0.2
+    
+    local targetBlock = blocksFolder:GetChildren()[i]
+    
+    if targetBlock then
+        Event:InvokeServer(
+            targetBlock,
+            size,
+            CFrame.new(x, y, Z, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+        )
+        
+        if i % 50 == 0 then
+            print("Progress:", i .. "/5625")
+        end
+    else
+        warn("Block", i, "not found!")
+        break
+    end
+    
+    wait(delay)
+end
+
+print("✅ Finished 75×75 grid at size 0.2!")
